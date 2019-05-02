@@ -15,29 +15,31 @@ class Forge
 
     public function __construct()
     {
-        $this->cacheDir = getenv('alfred_workflow_cache');
-        $this->dataCache = getenv('alfred_workflow_cache') . '/data.json';
-        $this->authCache = getenv('alfred_workflow_cache') . '/auth.txt';
+        $home_dir  = exec('echo $HOME');
         
-        if (!file_exists($this->cacheDir)) {
+        $this->cacheDir  = $home_dir . '/.alforge';
+        $this->dataCache = $this->cacheDir . '/data.json';
+        $this->authCache = $this->cacheDir . '/credentials';
+        
+        if (! file_exists($this->cacheDir)) {
             mkdir($this->cacheDir);
         }
 
-        if (!file_exists($this->dataCache)) {
-            file_put_contents($this->dataCache, json_encode(["servers" => []]));
+        if (! file_exists($this->dataCache)) {
+            file_put_contents($this->dataCache, json_encode(['servers' => []]));
         }
 
-        if (!file_exists($this->authCache)) {
+        if (! file_exists($this->authCache)) {
             file_put_contents($this->authCache, '');
         }
         
         $this->token = file_get_contents($this->authCache);
-        $this->data = json_decode(file_get_contents($this->dataCache));
+        $this->data  = json_decode(file_get_contents($this->dataCache));
     }
 
     public function loadCache()
     {
-        $this->data = [];
+        $this->data            = [];
         $this->data['servers'] = [];
         
         $response = $this->apiRequest('https://forge.laravel.com/api/v1/servers', 'GET');
@@ -49,8 +51,8 @@ class Forge
         if ($data->servers) {
             foreach ($data->servers as $server) {
                 $serverCount++;
-                $sitesResponse = $this->apiRequest('https://forge.laravel.com/api/v1/servers/'.$server->id.'/sites/', 'GET');
-                $sitesData = json_decode($sitesResponse);
+                $sitesResponse = $this->apiRequest('https://forge.laravel.com/api/v1/servers/' . $server->id . '/sites/', 'GET');
+                $sitesData     = json_decode($sitesResponse);
                 $server->sites = $sitesData->sites;
                 array_push($this->data['servers'], $server);
             }
@@ -63,15 +65,15 @@ class Forge
 
     public function apiRequest($url, $method = 'POST', $data = '')
     {
-        $authorization = "Authorization: Bearer " . $this->token;
+        $authorization = 'Authorization: Bearer ' . $this->token;
 
         $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json' , $authorization ]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', $authorization]);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-        $result = curl_exec($ch);
+        $result   = curl_exec($ch);
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
@@ -86,19 +88,19 @@ class Forge
     {
         if ($code >= 400 || strpos($result, '<html') > -1) {
             $errorMap = [
-                400 => "Valid data was given but the request has failed.",
-                401 => "No valid API Key was given.",
-                404 => "The request resource could not be found.",
-                422 => "The payload has missing required parameters or invalid data was given.",
-                429 => "Too many attempts.",
-                500 => "Request failed due to an internal error in Forge.",
-                503 => "Forge is offline for maintenance."
+                400 => 'Valid data was given but the request has failed.',
+                401 => 'No valid API Key was given.',
+                404 => 'The request resource could not be found.',
+                422 => 'The payload has missing required parameters or invalid data was given.',
+                429 => 'Too many attempts.',
+                500 => 'Request failed due to an internal error in Forge.',
+                503 => 'Forge is offline for maintenance.',
             ];
 
             if ($errorMap[$code]) {
                 $this->emitError($errorMap[$code]);
             } else {
-                $this->emitError("An unknown error occured, maybe try re-setting your API Key in Alfred");
+                $this->emitError('An unknown error occured, maybe try re-setting your API Key in Alfred');
             }
 
             return true;
@@ -125,14 +127,14 @@ class Forge
     public function respond($arg = '', $variables = [])
     {
         $defaultVars = [
-            "push_title" => "AlForge Notification"
+            'push_title' => 'AlForge Notification',
         ];
 
         $alfredObj = [
-            "alfredworkflow" => [
-                "arg" => $arg,
-                "variables" => array_merge($defaultVars, $variables)
-            ]
+            'alfredworkflow' => [
+                'arg'       => $arg,
+                'variables' => array_merge($defaultVars, $variables),
+            ],
         ];
 
         echo json_encode($alfredObj);
@@ -164,7 +166,6 @@ class Forge
                 }
             }
         }
-
 
         return $workflow->output();
     }
@@ -207,12 +208,13 @@ class Forge
         return $workflow->output();
     }
 
-    public function confirm($text = "Are you sure?")
+    public function confirm($text = 'Are you sure?')
     {
         $response = exec("echo $(osascript -e 'display dialog \"$text\" buttons {\"Cancel\",\"Confirm\"} default button 2 with title \"Confirm alForge Command\" with icon file \"System:Library:CoreServices:CoreTypes.bundle:Contents:Resources:AlertStopIcon.icns\"')");
 
-        if (!$response) {
+        if (! $response) {
             $this->respond('Action Cancelled');
+
             return false;
         }
 
